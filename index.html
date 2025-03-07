@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#34998db">
+    <link rel="manifest" href="/120-Cleaning-Schdule/manifest.json">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+    <title>Home Cleaning Schedule</title>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 24px;
+            background-color: #f5f7fa;
+            color: #1a1a1a;
+            line-height: 1.5;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        h1 {
+            color: #2d3748;
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 24px;
+            text-align: center;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin-bottom: 24px;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        th, td {
+            padding: 16px;
+            text-align: center;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        th {
+            background-color: #3498db;
+            color: white;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 14px;
+            letter-spacing: 0.05em;
+        }
+
+        tr:hover {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .input-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 16px;
+            align-items: center;
+            padding: 16px;
+            background: #f8fafc;
+            border-radius: 12px;
+            margin-top: 24px;
+        }
+
+        .date-display, .weekday-display {
+            padding: 12px;
+            background-color: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: 500;
+            color: #2d3748;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        }
+        
+        select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #3498db;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: 'Inter', sans-serif;
+            background-color: white;
+            color: #2d3748;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 600;
+            text-align: center;
+            text-align-last: center;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+        }
+
+        select:hover {
+            border-color: #2980b9;
+        }
+
+        select:focus {
+            outline: none;
+            border-color: #2980b9;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+        }
+        
+        .loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.6);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            backdrop-filter: blur(4px);
+        }
+        
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 600px) {
+            body {
+                padding: 16px;
+            }
+
+            .container {
+                padding: 16px;
+            }
+
+            .input-row {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+
+            th, td {
+                padding: 12px;
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Home Cleaning Schedule</h1>
+        
+        <table id="scheduleTable">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Weekday</th>
+                    <th>Name</th>
+                </tr>
+            </thead>
+            <tbody id="scheduleBody"></tbody>
+        </table>
+        
+        <div class="input-row">
+            <div class="date-display" id="todayDate"></div>
+            <div class="weekday-display" id="todayWeekday"></div>
+            <select id="nameSelect" onchange="saveName()">
+                <option value="">Select Name</option>
+                <option value="Sin Ying">Sin Ying</option>
+                <option value="Sin Yek">Sin Yek</option>
+                <option value="Jason">Jason</option>
+                <option value="Siang Wei">Siang Wei</option>
+                <option value="Chee Ka">Chee Ka</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="loading" id="loadingOverlay">
+        <div class="spinner"></div>
+    </div>
+
+    <script>
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxKVaMJX1dp3aMRIdxjw2alfkFkGC8aPjvDaW1h8B4ipMgXKNiIY2iU8XM30loLhEc_/exec';
+
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/120-Cleaning-Schdule/sw.js')
+                    .then(registration => {
+                        console.log('ServiceWorker registration successful');
+                    })
+                    .catch(err => {
+                        console.log('ServiceWorker registration failed: ', err);
+                    });
+            });
+        }
+
+        function formatDate(date) {
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = date.getFullYear();
+            return `${day}/${month}/${year}`;
+        }
+
+        function getWeekday(date) {
+            const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            return days[date.getDay()];
+        }
+
+        function updateTodayDisplay() {
+            const today = new Date();
+            document.getElementById('todayDate').textContent = formatDate(today);
+            document.getElementById('todayWeekday').textContent = getWeekday(today);
+        }
+
+        async function fetchSchedule() {
+            const scheduleTable = document.getElementById('scheduleTable');
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            
+            // Only show loading on initial load
+            if (!scheduleTable.hasAttribute('data-loaded')) {
+                loadingOverlay.style.display = 'flex';
+            }
+            
+            try {
+                const response = await fetch(SCRIPT_URL + '?v=' + new Date().getTime());
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                const data = await response.json();
+                
+                const tbody = document.getElementById('scheduleBody');
+                tbody.innerHTML = '';
+                
+                data.forEach(row => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${row.Date}</td>
+                        <td>${row.Weekday}</td>
+                        <td>${row.Name || ''}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+                
+                // Mark table as loaded
+                scheduleTable.setAttribute('data-loaded', 'true');
+            } catch (error) {
+                console.error('Error details:', error);
+                alert('Error fetching schedule: ' + error.message);
+            } finally {
+                loadingOverlay.style.display = 'none';
+            }
+        }
+
+        async function saveName() {
+            const nameSelect = document.getElementById('nameSelect');
+            const selectedName = nameSelect.value;
+            
+            if (!selectedName) return;
+
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            loadingOverlay.style.display = 'flex';
+
+            const today = new Date();
+            const newEntry = {
+                Date: formatDate(today),
+                Weekday: getWeekday(today),
+                Name: selectedName
+            };
+
+            try {
+                console.log('Sending data:', newEntry);
+                
+                const response = await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: {
+                        'Content-Type': 'text/plain',
+                    },
+                    body: JSON.stringify(newEntry)
+                });
+                
+                nameSelect.value = '';
+                await fetchSchedule();
+                
+            } catch (error) {
+                console.error('Error details:', error);
+                alert('Error saving entry: ' + error.message);
+            } finally {
+                loadingOverlay.style.display = 'none';
+            }
+        }
+
+        // Initial load
+        updateTodayDisplay();
+        fetchSchedule();
+    </script>
+</body>
+</html>
