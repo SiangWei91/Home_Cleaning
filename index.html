@@ -200,120 +200,151 @@
         <div class="spinner"></div>
     </div>
 
-    <script>
-        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxKVaMJX1dp3aMRIdxjw2alfkFkGC8aPjvDaW1h8B4ipMgXKNiIY2iU8XM30loLhEc_/exec';
-
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/120-Cleaning-Schdule/sw.js')
-                    .then(registration => {
-                        console.log('ServiceWorker registration successful');
-                    })
-                    .catch(err => {
-                        console.log('ServiceWorker registration failed: ', err);
-                    });
-            });
-        }
-
-        function formatDate(date) {
-            const day = String(date.getDate()).padStart(2, '0');
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const year = date.getFullYear();
-            return `${day}/${month}/${year}`;
-        }
-
-        function getWeekday(date) {
-            const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-            return days[date.getDay()];
-        }
-
-        function updateTodayDisplay() {
-            const today = new Date();
-            document.getElementById('todayDate').textContent = formatDate(today);
-            document.getElementById('todayWeekday').textContent = getWeekday(today);
-        }
-
-        async function fetchSchedule() {
-            const scheduleTable = document.getElementById('scheduleTable');
-            const loadingOverlay = document.getElementById('loadingOverlay');
-            
-            // Only show loading on initial load
-            if (!scheduleTable.hasAttribute('data-loaded')) {
-                loadingOverlay.style.display = 'flex';
-            }
-            
-            try {
-                const response = await fetch(SCRIPT_URL + '?v=' + new Date().getTime());
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                const data = await response.json();
-                
-                const tbody = document.getElementById('scheduleBody');
-                tbody.innerHTML = '';
-                
-                data.forEach(row => {
-                    const tr = document.createElement('tr');
-                    tr.innerHTML = `
-                        <td>${row.Date}</td>
-                        <td>${row.Weekday}</td>
-                        <td>${row.Name || ''}</td>
-                    `;
-                    tbody.appendChild(tr);
+   <script>
+    // Firebase configuration - we'll load the API key securely
+    const FIREBASE_URL = 'https://home-cleaning-schedule-ca19b-default-rtdb.asia-southeast1.firebasedatabase.app';
+    let FIREBASE_API_KEY = ''; // We'll fetch this securely
+    
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/120-Cleaning-Schdule/sw.js')
+                .then(registration => {
+                    console.log('ServiceWorker registration successful');
+                })
+                .catch(err => {
+                    console.log('ServiceWorker registration failed: ', err);
                 });
-                
-                // Mark table as loaded
-                scheduleTable.setAttribute('data-loaded', 'true');
-            } catch (error) {
-                console.error('Error details:', error);
-                alert('Error fetching schedule: ' + error.message);
-            } finally {
-                loadingOverlay.style.display = 'none';
+        });
+    }
+
+    // Securely get API key from backend
+    async function getApiKey() {
+        try {
+            // This endpoint should be a secure backend service that provides the API key
+            // It should never expose the key directly in the client code
+            const response = await fetch('/api/get-firebase-key');
+            if (!response.ok) {
+                throw new Error('Failed to retrieve API key');
             }
+            const data = await response.json();
+            FIREBASE_API_KEY = data.apiKey;
+        } catch (error) {
+            console.error('Error retrieving API key:', error);
         }
+    }
 
-        async function saveName() {
-            const nameSelect = document.getElementById('nameSelect');
-            const selectedName = nameSelect.value;
-            
-            if (!selectedName) return;
+    function formatDate(date) {
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        return `${day}/${month}/${year}`;
+    }
 
-            const loadingOverlay = document.getElementById('loadingOverlay');
+    function getWeekday(date) {
+        const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        return days[date.getDay()];
+    }
+
+    function updateTodayDisplay() {
+        const today = new Date();
+        document.getElementById('todayDate').textContent = formatDate(today);
+        document.getElementById('todayWeekday').textContent = getWeekday(today);
+    }
+
+    async function fetchSchedule() {
+        const scheduleTable = document.getElementById('scheduleTable');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        
+        // Only show loading on initial load
+        if (!scheduleTable.hasAttribute('data-loaded')) {
             loadingOverlay.style.display = 'flex';
-
-            const today = new Date();
-            const newEntry = {
-                Date: formatDate(today),
-                Weekday: getWeekday(today),
-                Name: selectedName
-            };
-
-            try {
-                console.log('Sending data:', newEntry);
-                
-                const response = await fetch(SCRIPT_URL, {
-                    method: 'POST',
-                    mode: 'no-cors',
-                    headers: {
-                        'Content-Type': 'text/plain',
-                    },
-                    body: JSON.stringify(newEntry)
-                });
-                
-                nameSelect.value = '';
-                await fetchSchedule();
-                
-            } catch (error) {
-                console.error('Error details:', error);
-                alert('Error saving entry: ' + error.message);
-            } finally {
-                loadingOverlay.style.display = 'none';
-            }
         }
+        
+        try {
+            // Make sure we have the API key
+            if (!FIREBASE_API_KEY) {
+                await getApiKey();
+            }
+            
+            // Use a backend proxy to fetch data from Firebase
+            const response = await fetch('/api/schedule');
+            
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            
+            const data = await response.json();
+            const tbody = document.getElementById('scheduleBody');
+            tbody.innerHTML = '';
+            
+            // Process the data from our secure backend
+            data.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${row.Date}</td>
+                    <td>${row.Weekday}</td>
+                    <td>${row.Name || ''}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+            
+            // Mark table as loaded
+            scheduleTable.setAttribute('data-loaded', 'true');
+        } catch (error) {
+            console.error('Error details:', error);
+            alert('Error fetching schedule: ' + error.message);
+        } finally {
+            loadingOverlay.style.display = 'none';
+        }
+    }
 
-        // Initial load
-        updateTodayDisplay();
-        fetchSchedule();
-    </script>
+    async function saveName() {
+        const nameSelect = document.getElementById('nameSelect');
+        const selectedName = nameSelect.value;
+        
+        if (!selectedName) return;
+
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        loadingOverlay.style.display = 'flex';
+
+        const today = new Date();
+        const newEntry = {
+            Date: formatDate(today),
+            Weekday: getWeekday(today),
+            Name: selectedName
+        };
+
+        try {
+            console.log('Sending data:', newEntry);
+            
+            // Use a backend proxy to save data to Firebase
+            const response = await fetch('/api/schedule', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(newEntry)
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(`Server error: ${JSON.stringify(errorData)}`);
+            }
+            
+            nameSelect.value = '';
+            await fetchSchedule();
+            
+        } catch (error) {
+            console.error('Error details:', error);
+            alert('Error saving entry: ' + error.message);
+        } finally {
+            loadingOverlay.style.display = 'none';
+        }
+    }
+
+    // Initial load
+    updateTodayDisplay();
+    fetchSchedule();
+</script>
 </body>
 </html>
