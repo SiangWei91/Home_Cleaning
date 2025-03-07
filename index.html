@@ -200,10 +200,10 @@
         <div class="spinner"></div>
     </div>
 
-   <script>
-    // Firebase configuration - we'll load the API key securely
+<script>
+    // Firebase configuration
     const FIREBASE_URL = 'https://home-cleaning-schedule-ca19b-default-rtdb.asia-southeast1.firebasedatabase.app';
-    let FIREBASE_API_KEY = ''; // We'll fetch this securely
+    const FIREBASE_API_KEY = 'AIzaSyCkmMCs2FK152zAgVvEzAR_-SUA3bbHWAQ';
     
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
@@ -215,22 +215,6 @@
                     console.log('ServiceWorker registration failed: ', err);
                 });
         });
-    }
-
-    // Securely get API key from backend
-    async function getApiKey() {
-        try {
-            // This endpoint should be a secure backend service that provides the API key
-            // It should never expose the key directly in the client code
-            const response = await fetch('/api/get-firebase-key');
-            if (!response.ok) {
-                throw new Error('Failed to retrieve API key');
-            }
-            const data = await response.json();
-            FIREBASE_API_KEY = data.apiKey;
-        } catch (error) {
-            console.error('Error retrieving API key:', error);
-        }
     }
 
     function formatDate(date) {
@@ -261,13 +245,9 @@
         }
         
         try {
-            // Make sure we have the API key
-            if (!FIREBASE_API_KEY) {
-                await getApiKey();
-            }
-            
-            // Use a backend proxy to fetch data from Firebase
-            const response = await fetch('/api/schedule');
+            // Fetch data from Firebase
+            const url = `${FIREBASE_URL}/schedule.json?auth=${FIREBASE_API_KEY}&orderBy="Date"`;
+            const response = await fetch(url);
             
             if (!response.ok) {
                 throw new Error('Network response was not ok');
@@ -277,8 +257,23 @@
             const tbody = document.getElementById('scheduleBody');
             tbody.innerHTML = '';
             
-            // Process the data from our secure backend
-            data.forEach(row => {
+            // Convert the Firebase object to an array
+            const scheduleArray = Object.keys(data || {}).map(key => ({
+                id: key,
+                ...data[key]
+            }));
+            
+            // Sort by date (assuming DD/MM/YYYY format)
+            scheduleArray.sort((a, b) => {
+                const [aDay, aMonth, aYear] = a.Date.split('/').map(Number);
+                const [bDay, bMonth, bYear] = b.Date.split('/').map(Number);
+                
+                if (aYear !== bYear) return aYear - bYear;
+                if (aMonth !== bMonth) return aMonth - bMonth;
+                return aDay - bDay;
+            });
+            
+            scheduleArray.forEach(row => {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td>${row.Date}</td>
@@ -317,8 +312,9 @@
         try {
             console.log('Sending data:', newEntry);
             
-            // Use a backend proxy to save data to Firebase
-            const response = await fetch('/api/schedule', {
+            // Save data to Firebase
+            const url = `${FIREBASE_URL}/schedule.json?auth=${FIREBASE_API_KEY}`;
+            const response = await fetch(url, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -328,7 +324,7 @@
             
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(`Server error: ${JSON.stringify(errorData)}`);
+                throw new Error(`Firebase error: ${JSON.stringify(errorData)}`);
             }
             
             nameSelect.value = '';
