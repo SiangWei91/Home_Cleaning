@@ -318,20 +318,46 @@ async function saveName() {
     };
 
     try {
-        console.log('Sending data:', newEntry);
+        // First fetch the current data
+        const getUrl = `${FIREBASE_URL}/ProductList.json`;
+        const getResponse = await fetch(getUrl);
         
-        // Direct Firebase access
-        const url = `${FIREBASE_URL}/ProductList.json`;
-        const response = await fetch(url, {
-            method: 'POST',
+        if (!getResponse.ok) {
+            throw new Error(`Network response was not ok: ${getResponse.status} ${getResponse.statusText}`);
+        }
+        
+        const currentData = await getResponse.json();
+        console.log('Current data:', currentData);
+        
+        // Get the main key
+        const mainKey = Object.keys(currentData)[0];
+        
+        if (!mainKey) {
+            throw new Error('No main key found in data');
+        }
+        
+        // Get the current array
+        const currentArray = currentData[mainKey];
+        
+        if (!Array.isArray(currentArray)) {
+            throw new Error('Data structure is not as expected');
+        }
+        
+        // Append the new entry
+        currentArray.push(newEntry);
+        
+        // Update the entire array
+        const updateUrl = `${FIREBASE_URL}/ProductList/${mainKey}.json`;
+        const updateResponse = await fetch(updateUrl, {
+            method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify(newEntry)
+            body: JSON.stringify(currentArray)
         });
         
-        if (!response.ok) {
-            const errorData = await response.json();
+        if (!updateResponse.ok) {
+            const errorData = await updateResponse.json();
             throw new Error(`Firebase error: ${JSON.stringify(errorData)}`);
         }
         
@@ -346,7 +372,6 @@ async function saveName() {
         loadingOverlay.style.display = 'none';
     }
 }
-
 // Service Worker registration - only if needed
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
