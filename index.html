@@ -315,7 +315,7 @@ async function saveName() {
         console.log('Sending data:', newEntry);
         
         // Direct Firebase access
-        const url = `${FIREBASE_URL}/schedule.json`;
+        const url = `${FIREBASE_URL}/ProductList.json`;
         const response = await fetch(url, {
             method: 'POST',
             headers: {
