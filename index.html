@@ -259,11 +259,18 @@ async function fetchSchedule() {
             return;
         }
         
-        // Convert the Firebase object to an array
-        const scheduleArray = Object.keys(data).map(key => ({
-            id: key,
-            ...data[key]
-        }));
+        // Handle the nested structure - get the first key (e.g., -QKj7VfY6_kUh7_ZoRnB)
+        const mainKey = Object.keys(data)[0];
+        if (!mainKey || !Array.isArray(data[mainKey])) {
+            const tr = document.createElement('tr');
+            tr.innerHTML = '<td colspan="3">Invalid data structure</td>';
+            tbody.appendChild(tr);
+            scheduleTable.setAttribute('data-loaded', 'true');
+            return;
+        }
+        
+        // Use the array directly
+        const scheduleArray = data[mainKey];
         
         // Sort by date (assuming DD/MM/YYYY format)
         scheduleArray.sort((a, b) => {
@@ -293,7 +300,6 @@ async function fetchSchedule() {
         loadingOverlay.style.display = 'none';
     }
 }
-
 // Fixed saveName function
 async function saveName() {
     const nameSelect = document.getElementById('nameSelect');
