@@ -282,7 +282,10 @@ async function fetchSchedule() {
             return aDay - bDay;
         });
         
-        scheduleArray.forEach(row => {
+        // Get only the most recent 11 entries
+        const recentEntries = scheduleArray.slice(-11);
+        
+        recentEntries.forEach(row => {
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td>${row.Date}</td>
